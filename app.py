@@ -208,7 +208,6 @@ Answer:"""
 
 
 
-# ========== Enhanced Chat Handler ==========
 def handle_userinput_with_sources(user_question):
     """Handle user input and display sources"""
     with st.spinner("🤔 Thinking and searching through your documents..."):
@@ -256,7 +255,9 @@ def handle_userinput_with_sources(user_question):
                         with st.expander(f"📄 {filename} ({len(docs)} chunks used)", expanded=False):
                             for i, doc in enumerate(docs, 1):
                                 st.markdown(f"**Chunk {i}:**")
-                                st.markdown(f"```\n{doc.page_content[:3]()_
+                                st.markdown(f"```\n{doc.page_content[:300]}...\n```")
+                                if i < len(docs):
+                                    st.markdown("---")
 
 
 def display_full_chat_history():
