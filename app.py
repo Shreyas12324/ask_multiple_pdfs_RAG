@@ -414,6 +414,55 @@ def main():
     with st.sidebar:
         st.markdown("## 📁 Document Management")
         st.divider()
+    
+        # Upload PDFs
+        st.markdown("### 📤 Upload Documents")
+        pdf_docs = st.file_uploader(
+            "Choose PDF files",
+            accept_multiple_files=True,
+            type=['pdf'],
+            help="Upload multiple PDFs for comprehensive question answering"
+        )
+    
+        if pdf_docs:
+            st.markdown("### 📋 Uploaded Files")
+            for i, pdf in enumerate(pdf_docs, 1):
+                st.markdown(f"**{i}.** {pdf.name}")
+                st.caption(f"Size: {pdf.size / 1024:.1f} KB")
+            st.divider()
+    
+        if st.button("🚀 Process Documents", type="primary", use_container_width=True):
+            if pdf_docs:
+                start_time = time.time()
+                with st.expander("📊 Processing Logs", expanded=True):
+                    # Extract text with metadata
+                    documents = get_pdf_text_with_metadata(pdf_docs)
+                    # Create chunks with metadata
+                    text_chunks, chunk_metadata = get_text_chunks_with_metadata(documents)
+                    # Create vector store
+                    vectorstore = get_vectorstore_with_metadata(text_chunks, chunk_metadata)
+                    st.session_state.vectorstore = vectorstore
+                    # Build conversation chain right after vectorstore creation
+                    st.session_state.conversation = build_conversation_chain(
+                        vectorstore,
+                        st.session_state.get("response_type", "Concise")
+                    )
+                    st.info("⚡ Vector store saved. Ready to answer questions with current mode.")
+                    # Store statistics
+                    st.session_state.document_stats = {
+                        'total_files': len(documents),
+                        'total_chunks': len(text_chunks),
+                        'total_pages': sum(doc['pages'] for doc in documents),
+                        'total_characters': sum(doc['characters'] for doc in documents),
+                        'processing_time': round(time.time() - start_time, 2)
+                    }
+                    st.success(f"✅ Processing completed in {st.session_state.document_stats['processing_time']} seconds!")
+                st.balloons()
+            else:
+                st.error("❌ Please upload at least one PDF file.")
+    
+        st.divider()
+    
         # Response Style Selection
         st.markdown("### 📝 Response Style")
         response_type = st.radio(
@@ -425,14 +474,14 @@ def main():
         previous_type = st.session_state.get("conversation_type")
         st.session_state.response_type = response_type
     
-        # If the response style changed, rebuild the conversation chain
         if previous_type and previous_type != response_type:
             st.session_state.conversation = build_conversation_chain(
                 st.session_state.vectorstore,
                 response_type
             )
             st.session_state.conversation_type = response_type
-            st.session_state.rerun_last_question = True  # just set the flag here
+            st.session_state.rerun_last_question = True
+
     
     # --- Outside sidebar, in main chat column ---
     if st.session_state.get("rerun_last_question") and st.session_state.last_question:
@@ -442,66 +491,7 @@ def main():
 
 
         
-        # Upload section
-        st.markdown("### 📤 Upload Documents")
-        pdf_docs = st.file_uploader(
-            "Choose PDF files",
-            accept_multiple_files=True,
-            type=['pdf'],
-            help="Upload multiple PDFs for comprehensive question answering"
-        )
-        
-        # Show uploaded files with details
-        if pdf_docs:
-            st.markdown("### 📋 Uploaded Files")
-            for i, pdf in enumerate(pdf_docs, 1):
-                st.markdown(f"**{i}.** {pdf.name}")
-                st.caption(f"Size: {pdf.size / 1024:.1f} KB")
-            st.divider()
-        
-        # Enhanced process button
-        if st.button("🚀 Process Documents", type="primary", use_container_width=True):
-            if pdf_docs:
-                start_time = time.time()
-                
-                with st.expander("📊 Processing Logs", expanded=True):
-                    # Extract text with metadata
-                    documents = get_pdf_text_with_metadata(pdf_docs)
-                    
-                    # Create chunks with metadata
-                    text_chunks, chunk_metadata = get_text_chunks_with_metadata(documents)
-                    
-                    # Create vector store
-                    vectorstore = get_vectorstore_with_metadata(text_chunks, chunk_metadata)
-                    st.session_state.vectorstore = vectorstore
-                    
-                    # Build conversation chain right after vectorstore creation
-                    st.session_state.conversation = build_conversation_chain(
-                        st.session_state.vectorstore,
-                        st.session_state.get("response_type", "Concise")
-                    )
 
-                    
-
-                    
-                    # Conversation chain will be built per question, so no need to create it here
-                    st.info("⚡ Vector store saved. Ready to answer questions with current mode.")
-
-                    
-                    # Store statistics
-                    st.session_state.document_stats = {
-                        'total_files': len(documents),
-                        'total_chunks': len(text_chunks),
-                        'total_pages': sum(doc['pages'] for doc in documents),
-                        'total_characters': sum(doc['characters'] for doc in documents),
-                        'processing_time': round(time.time() - start_time, 2)
-                    }
-                    
-                    st.success(f"✅ Processing completed in {st.session_state.document_stats['processing_time']} seconds!")
-                
-                st.balloons()
-            else:
-                st.error("❌ Please upload at least one PDF file.")
         
         # Show document statistics
         if st.session_state.document_stats:
