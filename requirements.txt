@@ -8,4 +8,4 @@ sentence-transformers
 huggingface_hub
 faiss-cpu
 InstructorEmbedding
-langchain_community
+langchain-community
