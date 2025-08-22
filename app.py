@@ -12,6 +12,7 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from langchain_groq import ChatGroq
+from langchain.prompts import PromptTemplate
 
 # Custom UI templates
 from htmlTemplates import css, bot_template, user_template
@@ -145,14 +146,19 @@ def get_conversation_chain_with_sources(vectorstore):
         return_messages=True,
         output_key='answer'
     )
+    qa_prompt = PromptTemplate(
+    template=system_prompt + "\nContext: {context}\nQuestion: {question}\nAnswer:",
+    input_variables=["context", "question"]
+)
+
 
     return ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=vectorstore.as_retriever(search_kwargs={"k": 4}),
-        memory=memory,
-        return_source_documents=True,
-        chain_type_kwargs={"prompt": system_prompt}  # 👈 injects style
-    )
+    llm=llm,
+    retriever=vectorstore.as_retriever(search_kwargs={"k": 4}),
+    memory=memory,
+    return_source_documents=True,
+    combine_docs_chain_kwargs={"prompt": qa_prompt}  
+)
 
 
     return ConversationalRetrievalChain.from_llm(
