@@ -9,3 +9,4 @@ huggingface_hub
 faiss-cpu
 InstructorEmbedding
 langchain-community
+langchain
