@@ -156,55 +156,7 @@ Answer:"""
     )
 
 
-'''# ========== Enhanced Conversation Setup ==========
-def get_conversation_chain_with_sources(vectorstore):
-    """Setup conversation chain that returns source information"""
-    
-    # Decide prompt style
-    response_type = st.session_state.get("response_type", "Concise")
 
-    if response_type == "Concise":
-        template = """
-You are a helpful AI assistant. Answer the user's question **briefly and concisely in 2-3 sentences**.
-Use only the context provided.
-Context: {context}
-Question: {question}
-Answer:"""
-    else:
-        template = """
-You are a helpful AI assistant. Answer the user's question **in a detailed, well-explained manner**.
-Provide examples, explanations, and reasoning when possible.
-Use only the context provided.
-Context: {context}
-Question: {question}
-Answer:"""
-
-    qa_prompt = PromptTemplate(
-        template=template,
-        input_variables=["context", "question"]
-    )
-
-    llm = ChatGroq(
-        model="LLaMA3-8b-8192",
-        temperature=0.7,
-    )
-
-    memory = ConversationBufferMemory(
-        memory_key='chat_history',
-        return_messages=True,
-        output_key='answer'
-    )
-
-    # Create conversational retrieval chain with source attribution
-    conversation_chain = ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=vectorstore.as_retriever(search_kwargs={"k": 4}),
-        memory=memory,
-        return_source_documents=True,
-        combine_docs_chain_kwargs={"prompt": qa_prompt}
-    )
-
-    return conversation_chain'''
 
 
 
