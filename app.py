@@ -385,10 +385,7 @@ def main():
         elif user_question:
             st.warning("⚠️ Please upload and process PDFs first using the sidebar.")
         
-        # Show complete chat history button
-        if st.session_state.chat_history and len(st.session_state.chat_history) > 2:
-            if st.button("📜 Show Complete Chat History"):
-                display_full_chat_history()
+
     
     with col2:
         # Enhanced info panel
