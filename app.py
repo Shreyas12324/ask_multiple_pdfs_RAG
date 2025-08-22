@@ -127,12 +127,33 @@ def get_vectorstore_with_metadata(text_chunks, chunk_metadata):
 # ========== Enhanced Conversation Setup ==========
 def get_conversation_chain_with_sources(vectorstore):
     """Setup conversation chain that returns source information"""
-    llm = ChatGroq(model="LLaMA3-8b-8192", temperature=0.7)
+    
+    # Decide prompt style
+    response_type = st.session_state.get("response_type", "Concise")
+    if response_type == "Concise":
+        system_prompt = "You are a helpful assistant. Answer concisely in 2-3 sentences."
+    else:
+        system_prompt = "You are a helpful assistant. Provide a detailed, well-explained answer with examples if possible."
+    
+    llm = ChatGroq(
+        model="LLaMA3-8b-8192",
+        temperature=0.7,
+    )
+    
     memory = ConversationBufferMemory(
         memory_key='chat_history', 
         return_messages=True,
-        output_key='answer'  # Specify which output to store in memory
+        output_key='answer'
     )
+
+    return ConversationalRetrievalChain.from_llm(
+        llm=llm,
+        retriever=vectorstore.as_retriever(search_kwargs={"k": 4}),
+        memory=memory,
+        return_source_documents=True,
+        chain_type_kwargs={"prompt": system_prompt}  # 👈 injects style
+    )
+
 
     return ConversationalRetrievalChain.from_llm(
         llm=llm,
@@ -164,6 +185,8 @@ def handle_userinput_with_sources(user_question):
         # Bot message with sources
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(answer)
+            st.caption(f"✍️ Response Style: {st.session_state.get('response_type', 'Concise')}")
+
             
             # Display sources if available
             if source_docs:
@@ -366,6 +389,17 @@ def main():
     with st.sidebar:
         st.markdown("## 📁 Document Management")
         st.divider()
+                # Response Style Selection
+        st.markdown("### 📝 Response Style")
+        response_type = st.radio(
+            "Choose response style:",
+            ("Concise", "Detailed"),
+            horizontal=True
+        )
+
+        # Save choice in session state so it persists
+        st.session_state.response_type = response_type
+
         
         # Upload section
         st.markdown("### 📤 Upload Documents")
