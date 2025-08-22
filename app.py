@@ -355,6 +355,28 @@ def main():
             help="Ask specific questions to get detailed answers with source references"
         )
         
+        # Handle user input with dynamic conversation chain rebuild
+        if user_question:
+            current_type = st.session_state.get("response_type", "Concise")
+            
+            # Rebuild conversation chain if it doesn't exist or if response type changed
+            if ("conversation" not in st.session_state
+                or st.session_state.conversation is None
+                or st.session_state.get("conversation_type") != current_type):
+                
+                if "vectorstore" in st.session_state:
+                    st.session_state.conversation = build_conversation_chain(
+                        st.session_state.vectorstore,
+                        current_type
+                    )
+                    st.session_state.conversation_type = current_type
+                else:
+                    st.warning("⚠️ Please upload and process PDFs first using the sidebar.")
+            
+            # If conversation chain exists, handle user input
+            if "conversation" in st.session_state and st.session_state.conversation:
+                handle_userinput_with_sources(user_question)
+
         # Handle user input
         if user_question and st.session_state.conversation:
             handle_userinput_with_sources(user_question)
@@ -433,6 +455,14 @@ def main():
                     
                     # Create vector store
                     vectorstore = get_vectorstore_with_metadata(text_chunks, chunk_metadata)
+                    st.session_state.vectorstore = vectorstore
+                    
+                    # Build conversation chain right after vectorstore creation
+                    st.session_state.conversation = build_conversation_chain(
+                        st.session_state.vectorstore,
+                        st.session_state.get("response_type", "Concise")
+                    )
+
                     
                     # Save vectorstore
                     st.session_state.vectorstore = vectorstore
