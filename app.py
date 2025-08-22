@@ -22,7 +22,7 @@ from htmlTemplates import css, bot_template, user_template
 def get_pdf_text_with_metadata(pdf_docs):
     """Extract text from PDFs while maintaining source information"""
     documents = []
-    text_chunks_with_source = []
+  
     
     st.info("📊 Starting PDF text extraction...")
     
@@ -164,14 +164,14 @@ def handle_userinput_with_sources(user_question):
     """Handle user input and display sources"""
     with st.spinner("🤔 Thinking and searching through your documents..."):
         # Rebuild chain per question to respect current response type
-        st.session_state.conversation = build_conversation_chain(
-            st.session_state.vectorstore,
-            st.session_state.get("response_type", "Concise")
-        )
 
         response = st.session_state.conversation({'question': user_question})
 
-        st.session_state.chat_history = response['chat_history']
+        if "chat_history" not in st.session_state or st.session_state.chat_history is None:
+            st.session_state.chat_history = []
+
+        st.session_state.chat_history.extend(response['chat_history'])
+
 
         # Get source documents and answer
         source_docs = response.get('source_documents', [])
@@ -376,10 +376,7 @@ def main():
             # If conversation chain exists, handle user input
             if "conversation" in st.session_state and st.session_state.conversation:
                 handle_userinput_with_sources(user_question)
-
-        # Handle user input
-        if user_question and st.session_state.conversation:
-            handle_userinput_with_sources(user_question)
+                
         elif user_question:
             st.warning("⚠️ Please upload and process PDFs first using the sidebar.")
         
@@ -464,8 +461,7 @@ def main():
                     )
 
                     
-                    # Save vectorstore
-                    st.session_state.vectorstore = vectorstore
+
                     
                     # Conversation chain will be built per question, so no need to create it here
                     st.info("⚡ Vector store saved. Ready to answer questions with current mode.")
