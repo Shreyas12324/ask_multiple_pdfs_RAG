@@ -299,6 +299,9 @@ def main():
         st.session_state.processing_logs = []
     if "document_stats" not in st.session_state:
         st.session_state.document_stats = {}
+    if "last_question" not in st.session_state:
+        st.session_state.last_question = None
+
 
     # Main header
     st.markdown("""
@@ -357,6 +360,8 @@ def main():
         
         # Handle user input with dynamic conversation chain rebuild
         if user_question:
+            st.session_state.last_question = user_question  # Save current question
+
             current_type = st.session_state.get("response_type", "Concise")
             
             # Rebuild conversation chain if it doesn't exist or if response type changed
@@ -419,6 +424,23 @@ def main():
 
         # Save choice in session state so it persists
         st.session_state.response_type = response_type
+                # Save choice in session state so it persists
+        previous_type = st.session_state.get("conversation_type")
+        st.session_state.response_type = response_type
+        
+        # If the response style changed, rebuild the conversation chain
+        if previous_type and previous_type != response_type:
+            if "vectorstore" in st.session_state:
+                st.session_state.conversation = build_conversation_chain(
+                    st.session_state.vectorstore,
+                    response_type
+                )
+                st.session_state.conversation_type = response_type
+        
+                # Automatically re-run the last question if it exists
+                if st.session_state.last_question:
+                    handle_userinput_with_sources(st.session_state.last_question)
+
 
         
         # Upload section
