@@ -1,4 +1,3 @@
-
 streamlit
 python-dotenv
 PyPDF2
@@ -8,4 +7,4 @@ langchain-groq
 sentence-transformers
 huggingface_hub
 faiss-cpu
-langchain-community
+InstructorEmbedding
