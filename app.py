@@ -123,9 +123,40 @@ def get_vectorstore_with_metadata(text_chunks, chunk_metadata):
     st.success(f"✅ Created vector store with {len(text_chunks)} embeddings")
     
     return vectorstore
+# ========== Build Conversation Chain Dynamically ==========
+def build_conversation_chain(vectorstore, response_type):
+    """Build a conversation chain using the current response type"""
+    if response_type == "Concise":
+        template = """
+You are a helpful AI assistant. Answer the user's question **briefly and concisely in 2-3 sentences**.
+Use only the context provided.
+Context: {context}
+Question: {question}
+Answer:"""
+    else:
+        template = """
+You are a helpful AI assistant. Answer the user's question **in a detailed, well-explained manner**.
+Provide examples, explanations, and reasoning when possible.
+Use only the context provided.
+Context: {context}
+Question: {question}
+Answer:"""
+
+    qa_prompt = PromptTemplate(template=template, input_variables=["context", "question"])
+
+    llm = ChatGroq(model="LLaMA3-8b-8192", temperature=0.7)
+    memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True, output_key='answer')
+
+    return ConversationalRetrievalChain.from_llm(
+        llm=llm,
+        retriever=vectorstore.as_retriever(search_kwargs={"k": 4}),
+        memory=memory,
+        return_source_documents=True,
+        combine_docs_chain_kwargs={"prompt": qa_prompt}
+    )
 
 
-# ========== Enhanced Conversation Setup ==========
+'''# ========== Enhanced Conversation Setup ==========
 def get_conversation_chain_with_sources(vectorstore):
     """Setup conversation chain that returns source information"""
     
@@ -173,7 +204,7 @@ Answer:"""
         combine_docs_chain_kwargs={"prompt": qa_prompt}
     )
 
-    return conversation_chain
+    return conversation_chain'''
 
 
 
@@ -181,48 +212,51 @@ Answer:"""
 def handle_userinput_with_sources(user_question):
     """Handle user input and display sources"""
     with st.spinner("🤔 Thinking and searching through your documents..."):
-        response = st.session_state.conversation({'question': user_question})
-    
-    st.session_state.chat_history = response['chat_history']
-    
-    # Get source documents and answer
-    source_docs = response.get('source_documents', [])
-    answer = response.get('answer', '')
-    
-    # Display the conversation
-    chat_container = st.container()
-    with chat_container:
-        # User message
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(user_question)
-        
-        # Bot message with sources
-        with st.chat_message("assistant", avatar="🤖"):
-            st.markdown(answer)
-            st.caption(f"✍️ Response Style: {st.session_state.get('response_type', 'Concise')}")
+        # Rebuild chain per question to respect current response type
+        st.session_state.conversation = build_conversation_chain(
+            st.session_state.vectorstore,
+            st.session_state.get("response_type", "Concise")
+        )
 
-            
-            # Display sources if available
-            if source_docs:
-                st.markdown("---")
-                st.markdown("### 📚 **Sources Used:**")
-                
-                # Group sources by filename
-                sources_by_file = {}
-                for doc in source_docs:
-                    source = doc.metadata.get('source', 'Unknown')
-                    if source not in sources_by_file:
-                        sources_by_file[source] = []
-                    sources_by_file[source].append(doc)
-                
-                # Display sources in expandable sections
-                for filename, docs in sources_by_file.items():
-                    with st.expander(f"📄 {filename} ({len(docs)} chunks used)", expanded=False):
-                        for i, doc in enumerate(docs, 1):
-                            st.markdown(f"**Chunk {i}:**")
-                            st.markdown(f"```\n{doc.page_content[:300]}...\n```")
-                            if i < len(docs):
-                                st.markdown("---")
+        response = st.session_state.conversation({'question': user_question})
+
+        st.session_state.chat_history = response['chat_history']
+
+        # Get source documents and answer
+        source_docs = response.get('source_documents', [])
+        answer = response.get('answer', '')
+
+        # Display the conversation
+        chat_container = st.container()
+        with chat_container:
+            # User message
+            with st.chat_message("user", avatar="👤"):
+                st.markdown(user_question)
+
+            # Bot message with sources
+            with st.chat_message("assistant", avatar="🤖"):
+                st.markdown(answer)
+                st.caption(f"✍️ Response Style: {st.session_state.get('response_type', 'Concise')}")
+
+                # Display sources if available
+                if source_docs:
+                    st.markdown("---")
+                    st.markdown("### 📚 **Sources Used:**")
+
+                    # Group sources by filename
+                    sources_by_file = {}
+                    for doc in source_docs:
+                        source = doc.metadata.get('source', 'Unknown')
+                        if source not in sources_by_file:
+                            sources_by_file[source] = []
+                        sources_by_file[source].append(doc)
+
+                    # Display sources in expandable sections
+                    for filename, docs in sources_by_file.items():
+                        with st.expander(f"📄 {filename} ({len(docs)} chunks used)", expanded=False):
+                            for i, doc in enumerate(docs, 1):
+                                st.markdown(f"**Chunk {i}:**")
+                                st.markdown(f"```\n{doc.page_content[:3]()_
 
 
 def display_full_chat_history():
@@ -447,9 +481,12 @@ def main():
                     # Create vector store
                     vectorstore = get_vectorstore_with_metadata(text_chunks, chunk_metadata)
                     
-                    # Setup conversation
-                    st.info("⚡ Setting up conversation chain...")
-                    st.session_state.conversation = get_conversation_chain_with_sources(vectorstore)
+                    # Save vectorstore
+                    st.session_state.vectorstore = vectorstore
+                    
+                    # Conversation chain will be built per question, so no need to create it here
+                    st.info("⚡ Vector store saved. Ready to answer questions with current mode.")
+
                     
                     # Store statistics
                     st.session_state.document_stats = {
