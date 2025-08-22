@@ -7,7 +7,7 @@ from datetime import datetime
 
 # LangChain v0.2+ compatible imports
 from langchain.text_splitter import CharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceInstructEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
@@ -108,7 +108,7 @@ def get_vectorstore_with_metadata(text_chunks, chunk_metadata):
     """Create vector store with metadata for source attribution"""
     st.info("🧠 Creating vector embeddings...")
     
-    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     
     # Create FAISS store with metadata
     metadatas = [{'source': meta['source'], 'chunk_id': meta['chunk_id']} for meta in chunk_metadata]
@@ -435,7 +435,7 @@ def main():
         with st.expander("🛠️ Technical Details"):
             st.markdown("""
             **AI Model:** LLaMA3-8b-8192  
-            **Embeddings:** HuggingFace Instructor-XL  
+            **Embeddings:** all-MiniLM-L6-v2 (Sentence Transformers)  
             **Vector Store:** FAISS with metadata  
             **Chunk Size:** 1000 characters  
             **Chunk Overlap:** 200 characters  
