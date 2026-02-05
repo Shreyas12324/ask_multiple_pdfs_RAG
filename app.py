@@ -5,14 +5,14 @@ from PyPDF2 import PdfReader
 import time
 from datetime import datetime
 
-# LangChain v0.2+ compatible imports
-from langchain.text_splitter import CharacterTextSplitter
+# LangChain v1.x+ compatible imports
+from langchain_text_splitters import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.chains import ConversationalRetrievalChain
-from langchain.memory import ConversationBufferMemory
+from langchain_classic.chains import ConversationalRetrievalChain
+from langchain_classic.memory import ConversationBufferMemory
 from langchain_groq import ChatGroq
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 # Custom UI templates
 from htmlTemplates import css, bot_template, user_template
@@ -24,10 +24,10 @@ def get_pdf_text_with_metadata(pdf_docs):
     documents = []
   
     
-    st.info("📊 Starting PDF text extraction...")
+    st.info("Starting PDF text extraction...")
     
     for i, pdf in enumerate(pdf_docs):
-        st.write(f"📄 Processing: **{pdf.name}**")
+        st.write(f"Processing: **{pdf.name}**")
         
         try:
             reader = PdfReader(pdf)
@@ -51,17 +51,17 @@ def get_pdf_text_with_metadata(pdf_docs):
                 'characters': len(pdf_text)
             })
             
-            st.success(f"✅ Extracted {len(pdf_text)} characters from {page_count} pages")
+            st.success(f"Extracted {len(pdf_text)} characters from {page_count} pages")
             
         except Exception as e:
-            st.error(f"❌ Error processing {pdf.name}: {str(e)}")
+            st.error(f"Error processing {pdf.name}: {str(e)}")
     
     return documents
 
 
 def get_text_chunks_with_metadata(documents):
     """Split text into chunks while preserving source information"""
-    st.info("✂️ Starting text chunking process...")
+    st.info("Starting text chunking process...")
     
     splitter = CharacterTextSplitter(
         separator="\n",
@@ -74,7 +74,7 @@ def get_text_chunks_with_metadata(documents):
     chunk_metadata = []
     
     for doc in documents:
-        st.write(f"📝 Chunking: **{doc['filename']}**")
+        st.write(f"Chunking: **{doc['filename']}**")
         
         chunks = splitter.split_text(doc['text'])
         
@@ -86,10 +86,10 @@ def get_text_chunks_with_metadata(documents):
                 'chunk_size': len(chunk)
             })
         
-        st.success(f"✅ Created {len(chunks)} chunks from {doc['filename']}")
+        st.success(f"Created {len(chunks)} chunks from {doc['filename']}")
     
     # Display chunking summary
-    st.markdown("### 📋 Chunking Summary")
+    st.markdown("### Chunking Summary")
     summary_data = {}
     for metadata in chunk_metadata:
         source = metadata['source']
@@ -99,7 +99,7 @@ def get_text_chunks_with_metadata(documents):
         summary_data[source]['total_size'] += metadata['chunk_size']
     
     for source, data in summary_data.items():
-        st.write(f"📄 **{source}**: {data['count']} chunks, {data['total_size']:,} characters")
+        st.write(f"**{source}**: {data['count']} chunks, {data['total_size']:,} characters")
     
     return all_chunks, chunk_metadata
 
@@ -107,7 +107,7 @@ def get_text_chunks_with_metadata(documents):
 # ========== Enhanced Vector Store ==========
 def get_vectorstore_with_metadata(text_chunks, chunk_metadata):
     """Create vector store with metadata for source attribution"""
-    st.info("🧠 Creating vector embeddings...")
+    st.info("Creating vector embeddings...")
     
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     
@@ -120,7 +120,7 @@ def get_vectorstore_with_metadata(text_chunks, chunk_metadata):
         metadatas=metadatas
     )
     
-    st.success(f"✅ Created vector store with {len(text_chunks)} embeddings")
+    st.success(f"Created vector store with {len(text_chunks)} embeddings")
     
     return vectorstore
 # ========== Build Conversation Chain Dynamically ==========
@@ -144,7 +144,7 @@ Answer:"""
 
     qa_prompt = PromptTemplate(template=template, input_variables=["context", "question"])
 
-    llm = ChatGroq(model="LLaMA3-8b-8192", temperature=0.7)
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.7)
     memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True, output_key='answer')
 
     return ConversationalRetrievalChain.from_llm(
@@ -162,7 +162,7 @@ Answer:"""
 
 def handle_userinput_with_sources(user_question):
     """Handle user input and display sources"""
-    with st.spinner("🤔 Thinking and searching through your documents..."):
+    with st.spinner("Searching through your documents..."):
         # Rebuild chain per question to respect current response type
 
         response = st.session_state.conversation({'question': user_question})
@@ -181,18 +181,18 @@ def handle_userinput_with_sources(user_question):
         chat_container = st.container()
         with chat_container:
             # User message
-            with st.chat_message("user", avatar="👤"):
+            with st.chat_message("user"):
                 st.markdown(user_question)
 
             # Bot message with sources
-            with st.chat_message("assistant", avatar="🤖"):
+            with st.chat_message("assistant"):
                 st.markdown(answer)
-                st.caption(f"✍️ Response Style: {st.session_state.get('response_type', 'Concise')}")
+                st.caption(f"Response Style: {st.session_state.get('response_type', 'Concise')}")
 
                 # Display sources if available
                 if source_docs:
                     st.markdown("---")
-                    st.markdown("### 📚 **Sources Used:**")
+                    st.markdown("### **Sources Used:**")
 
                     # Group sources by filename
                     sources_by_file = {}
@@ -204,7 +204,7 @@ def handle_userinput_with_sources(user_question):
 
                     # Display sources in expandable sections
                     for filename, docs in sources_by_file.items():
-                        with st.expander(f"📄 {filename} ({len(docs)} chunks used)", expanded=False):
+                        with st.expander(f"{filename} ({len(docs)} chunks used)", expanded=False):
                             for i, doc in enumerate(docs, 1):
                                 st.markdown(f"**Chunk {i}:**")
                                 st.markdown(f"```\n{doc.page_content[:300]}...\n```")
@@ -215,16 +215,16 @@ def handle_userinput_with_sources(user_question):
 def display_full_chat_history():
     """Display the complete chat history with sources"""
     if st.session_state.chat_history:
-        st.markdown("### 📋 Complete Conversation History")
+        st.markdown("### Complete Conversation History")
         
         for i in range(0, len(st.session_state.chat_history), 2):
             if i + 1 < len(st.session_state.chat_history):
                 # User message
-                with st.chat_message("user", avatar="👤"):
+                with st.chat_message("user"):
                     st.markdown(st.session_state.chat_history[i].content)
                 
                 # Bot message
-                with st.chat_message("assistant", avatar="🤖"):
+                with st.chat_message("assistant"):
                     st.markdown(st.session_state.chat_history[i + 1].content)
 
 
@@ -235,7 +235,7 @@ def main():
     # Enhanced page configuration
     st.set_page_config(
         page_title="PDF Chat Assistant with Sources", 
-        page_icon="📚",
+        page_icon="",
         layout="wide",
         initial_sidebar_state="expanded"
     )
@@ -249,7 +249,7 @@ def main():
     .main-header {
         text-align: center;
         padding: 2rem 0;
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(to right, #ffb74d, #fff176);
         color: white;
         border-radius: 10px;
         margin-bottom: 2rem;
@@ -306,7 +306,7 @@ def main():
     # Main header
     st.markdown("""
     <div class="main-header">
-        <h1>📚 PDF Chat Assistant with Source Attribution</h1>
+        <h1>PDF Chat Assistant</h1>
         <p>Upload PDFs, ask questions, and see exactly which documents provided each answer</p>
     </div>
     """, unsafe_allow_html=True)
@@ -316,7 +316,7 @@ def main():
     
     with col1:
         # Chat interface section
-        st.markdown("### 💬 Chat Interface")
+        st.markdown("### Chat Interface")
         
         # Status indicator with stats
         if st.session_state.conversation and st.session_state.document_stats:
@@ -347,9 +347,9 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
             
-            st.success("✅ Ready to chat! Documents processed and indexed.")
+            st.success("Ready to chat. Documents processed and indexed.")
         else:
-            st.info("ℹ️ Upload and process your PDFs to start chatting with source attribution.")
+            st.info("Upload and process your PDFs to start chatting.")
         
         # Question input
         user_question = st.text_input(
@@ -376,30 +376,30 @@ def main():
                     )
                     st.session_state.conversation_type = current_type
                 else:
-                    st.warning("⚠️ Please upload and process PDFs first using the sidebar.")
+                    st.warning("Please upload and process PDFs first using the sidebar.")
             
             # If conversation chain exists, handle user input
             if "conversation" in st.session_state and st.session_state.conversation:
                 handle_userinput_with_sources(user_question)
                 
         elif user_question:
-            st.warning("⚠️ Please upload and process PDFs first using the sidebar.")
+            st.warning("Please upload and process PDFs first using the sidebar.")
         
 
     
     with col2:
         # Enhanced info panel
-        st.markdown("### ℹ️ How it works")
+        st.markdown("### How it works")
         
-        with st.expander("📖 Instructions", expanded=True):
+        with st.expander("Instructions", expanded=True):
             st.markdown("""
-            1. **Upload PDFs** 📄 - Use sidebar to upload multiple PDFs
-            2. **Process Documents** ⚙️ - Watch the detailed processing logs  
-            3. **Ask Questions** ❓ - Get answers with source attribution
-            4. **View Sources** 🔍 - See exactly which PDFs and chunks were used
+            1. **Upload PDFs** - Use sidebar to upload multiple PDFs
+            2. **Process Documents** - Watch the detailed processing logs  
+            3. **Ask Questions** - Get answers with source attribution
+            4. **View Sources** - See exactly which PDFs and chunks were used
             """)
         
-        with st.expander("🆕 New Features"):
+        with st.expander("Features"):
             st.markdown("""
             - **Source Attribution** - See which PDFs answered your question
             - **Chunk Visualization** - View the exact text chunks used
@@ -409,11 +409,11 @@ def main():
 
     # Enhanced Sidebar
     with st.sidebar:
-        st.markdown("## 📁 Document Management")
+        st.markdown("## Document Management")
         st.divider()
     
         # Upload PDFs
-        st.markdown("### 📤 Upload Documents")
+        st.markdown("### Upload Documents")
         pdf_docs = st.file_uploader(
             "Choose PDF files",
             accept_multiple_files=True,
@@ -422,16 +422,16 @@ def main():
         )
     
         if pdf_docs:
-            st.markdown("### 📋 Uploaded Files")
+            st.markdown("### Uploaded Files")
             for i, pdf in enumerate(pdf_docs, 1):
                 st.markdown(f"**{i}.** {pdf.name}")
                 st.caption(f"Size: {pdf.size / 1024:.1f} KB")
             st.divider()
     
-        if st.button("🚀 Process Documents", type="primary", use_container_width=True):
+        if st.button("Process Documents", type="primary", use_container_width=True):
             if pdf_docs:
                 start_time = time.time()
-                with st.expander("📊 Processing Logs", expanded=True):
+                with st.expander("Processing Logs", expanded=True):
                     # Extract text with metadata
                     documents = get_pdf_text_with_metadata(pdf_docs)
                     # Create chunks with metadata
@@ -444,7 +444,7 @@ def main():
                         vectorstore,
                         st.session_state.get("response_type", "Concise")
                     )
-                    st.info("⚡ Vector store saved. Ready to answer questions with current mode.")
+                    st.info("Vector store saved. Ready to answer questions.")
                     # Store statistics
                     st.session_state.document_stats = {
                         'total_files': len(documents),
@@ -453,15 +453,14 @@ def main():
                         'total_characters': sum(doc['characters'] for doc in documents),
                         'processing_time': round(time.time() - start_time, 2)
                     }
-                    st.success(f"✅ Processing completed in {st.session_state.document_stats['processing_time']} seconds!")
-                st.balloons()
+                    st.success(f"Processing completed in {st.session_state.document_stats['processing_time']} seconds.")
             else:
-                st.error("❌ Please upload at least one PDF file.")
+                st.error("Please upload at least one PDF file.")
     
         st.divider()
     
         # Response Style Selection
-        st.markdown("### 📝 Response Style")
+        st.markdown("### Response Style")
         response_type = st.radio(
             "Choose response style:",
             ("Concise", "Detailed"),
@@ -493,7 +492,7 @@ def main():
         # Show document statistics
         if st.session_state.document_stats:
             st.divider()
-            st.markdown("### 📊 Knowledge Base Stats")
+            st.markdown("### Knowledge Base Stats")
             stats = st.session_state.document_stats
             
             st.metric("Documents", stats['total_files'])
@@ -504,9 +503,9 @@ def main():
         st.divider()
         
         # Technical details
-        with st.expander("🛠️ Technical Details"):
+        with st.expander("Technical Details"):
             st.markdown("""
-            **AI Model:** LLaMA3-8b-8192  
+            **AI Model:** llama-3.1-8b-instant  
             **Embeddings:** all-MiniLM-L6-v2 (Sentence Transformers)  
             **Vector Store:** FAISS with metadata  
             **Chunk Size:** 1000 characters  
@@ -514,7 +513,7 @@ def main():
             **Retrieval:** Top 4 relevant chunks  
             """)
         
-        with st.expander("💡 Pro Tips"):
+        with st.expander("Tips"):
             st.markdown("""
             - **Source Tracking:** Each answer shows which PDFs were used
             - **Chunk Preview:** Click source expandables to see exact text
